@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+env/
+.env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+web-build/
+
+# Expo / Metro
+.expo/
+.metro-health-check*
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+/ios
+/android
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Debug & logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Python
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# TypeScript
+*.tsbuildinfo
+
+# Test & coverage
+coverage/
+.nyc_output/
