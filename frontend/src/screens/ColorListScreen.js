@@ -1,7 +1,6 @@
 /**
  * Color list - fetches colors for the selected tile.
- * Displays color swatch (hex_code) when available.
- * This is the final step; future: "Generate Visualization" button.
+ * Tapping a color goes to AddPhotoScreen to add a house image and upload.
  */
 import React, { useEffect, useState } from "react";
 import {
@@ -13,8 +12,8 @@ import {
 } from "react-native";
 import { api } from "../api/client";
 
-export default function ColorListScreen({ route }) {
-  const { tileId, tileName, manufacturerName } = route.params;
+export default function ColorListScreen({ route, navigation }) {
+  const { tileId, tileName, manufacturerName, manufacturerId } = route.params;
   const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,47 +28,60 @@ export default function ColorListScreen({ route }) {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-slate-50">
-        <ActivityIndicator size="large" color="#1e293b" />
-        <Text className="text-slate-600 mt-2">Loading colors...</Text>
+      <View className="flex-1 justify-center items-center bg-[#e2e8f0]">
+        <ActivityIndicator size="large" color="#334155" />
+        <Text className="text-[#64748b] mt-2">Loading…</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center bg-slate-50 px-6">
-        <Text className="text-red-600 text-center">{error}</Text>
+      <View className="flex-1 justify-center items-center bg-[#e2e8f0] px-6">
+        <Text className="text-[#b91c1c] text-center font-medium">{error}</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <View className="px-4 py-2 bg-slate-100">
-        <Text className="text-slate-500 text-sm">
-          {manufacturerName} → {tileName}
-        </Text>
+    <View className="flex-1 bg-[#e2e8f0]">
+      <View className="px-4 py-3">
+        <View className="bg-white rounded-xl px-4 py-3 border border-[#dbe4ef]">
+          <Text className="text-[#0f172a] font-semibold text-sm">Step 4 of 4</Text>
+          <Text className="text-[#64748b] text-sm mt-1">{manufacturerName} → {tileName}</Text>
+        </View>
       </View>
       <FlatList
         data={colors}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 10, paddingBottom: 24 }}
         renderItem={({ item }) => (
-          <Pressable className="bg-white p-4 rounded-lg mb-2 flex-row items-center active:opacity-80">
+          <Pressable
+            onPress={() =>
+              navigation.navigate("AddPhoto", {
+                manufacturerId,
+                manufacturerName,
+                tileId,
+                tileName,
+                colorId: item.id,
+                colorName: item.name,
+              })
+            }
+            className="bg-white p-4 rounded-xl mb-3 flex-row items-center border border-[#dbe4ef] active:opacity-90"
+          >
             {item.hex_code && (
               <View
-                className="w-10 h-10 rounded-lg mr-4 border border-slate-200"
+                className="w-10 h-10 rounded-lg mr-4 border border-[#e5e7eb]"
                 style={{ backgroundColor: item.hex_code }}
               />
             )}
-            <Text className="text-slate-800 font-medium flex-1">{item.name}</Text>
+            <Text className="text-[#1e293b] font-medium flex-1">{item.name}</Text>
           </Pressable>
         )}
       />
-      <View className="p-4 border-t border-slate-200 bg-white">
-        <Text className="text-slate-500 text-center text-sm">
-          Phase 2: Camera + upload will go here. Phase 3: AI visualization.
+      <View className="p-4 border-t border-[#dbe4ef] bg-white">
+        <Text className="text-[#64748b] text-center text-sm">
+          Tap a color to add a photo and generate your visualization
         </Text>
       </View>
     </View>

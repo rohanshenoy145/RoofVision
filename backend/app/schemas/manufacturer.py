@@ -12,5 +12,6 @@ class ManufacturerResponse(BaseModel):
     id: int
     name: str
     slug: str | None = None
+    material_type: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

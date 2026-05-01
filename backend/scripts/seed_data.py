@@ -28,11 +28,14 @@ def seed(db: Session) -> None:
     db.query(Manufacturer).delete()
     db.commit()
 
-    # --- Manufacturers ---
-    gaf = Manufacturer(name="GAF", slug="gaf")
-    certainteed = Manufacturer(name="CertainTeed", slug="certainteed")
-    owens = Manufacturer(name="Owens Corning", slug="owens-corning")
-    db.add_all([gaf, certainteed, owens])
+    # --- Manufacturers (with material_type for "material first" flow) ---
+    gaf = Manufacturer(name="GAF", slug="gaf", material_type="shingle")
+    certainteed = Manufacturer(name="CertainTeed", slug="certainteed", material_type="shingle")
+    owens = Manufacturer(name="Owens Corning", slug="owens-corning", material_type="shingle")
+    # Tile & metal placeholders so all three material types have options
+    malarkey = Manufacturer(name="Malarkey", slug="malarkey", material_type="tile")
+    decra = Manufacturer(name="DECRA", slug="decra", material_type="metal")
+    db.add_all([gaf, certainteed, owens, malarkey, decra])
     db.flush()  # Get IDs
 
     # --- GAF Tiles ---
@@ -92,6 +95,28 @@ def seed(db: Session) -> None:
         Color(tile_id=duration.id, name="Slate", hex_code="#5D6D7E"),
     ]
     db.add_all(owens_colors)
+
+    # --- Malarkey (tile) - one product line so "Tile" material has a full path ---
+    malarkey_legacy = Tile(manufacturer_id=malarkey.id, name="Legacy", slug="legacy")
+    db.add(malarkey_legacy)
+    db.flush()
+    malarkey_colors = [
+        Color(tile_id=malarkey_legacy.id, name="Terracotta", hex_code="#B87333"),
+        Color(tile_id=malarkey_legacy.id, name="Slate Gray", hex_code="#5D6D7E"),
+        Color(tile_id=malarkey_legacy.id, name="Weathered Wood", hex_code="#8B7355"),
+    ]
+    db.add_all(malarkey_colors)
+
+    # --- DECRA (metal) - one product line so "Metal" material has a full path ---
+    decra_stone = Tile(manufacturer_id=decra.id, name="Stone Coated", slug="stone-coated")
+    db.add(decra_stone)
+    db.flush()
+    decra_colors = [
+        Color(tile_id=decra_stone.id, name="Slate Gray", hex_code="#5D6D7E"),
+        Color(tile_id=decra_stone.id, name="Weathered Wood", hex_code="#8B7355"),
+        Color(tile_id=decra_stone.id, name="Black", hex_code="#2C2C2C"),
+    ]
+    db.add_all(decra_colors)
 
     db.commit()
     print("Seed complete: manufacturers, tiles, and colors added.")

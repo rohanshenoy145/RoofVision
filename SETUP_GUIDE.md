@@ -10,7 +10,7 @@ Cross-platform mobile app for roofers: photo → manufacturer/tile/color selecti
 |----------|-----------------------------------------------------------------------|
 | Frontend | React Native, Expo (Managed), NativeWind (Tailwind), lucide-react-native |
 | Backend  | Python FastAPI, SQLAlchemy (PostgreSQL), Pydantic                      |
-| AI       | Planned: Stable Diffusion / ControlNet APIs                           |
+| AI       | Gemini API (with mock fallback)                                       |
 
 ---
 
@@ -57,11 +57,11 @@ Populates manufacturers (GAF, CertainTeed, Owens Corning), tiles, and colors.
 ```bash
 # From backend/
 python run.py
-# Or: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Or: uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-API: http://localhost:8000  
-Docs: http://localhost:8000/docs
+API: http://localhost:8001  
+Docs: http://localhost:8001/docs
 
 ### Backend Folder Structure
 
@@ -211,7 +211,7 @@ npx expo start --clear
 ### Android emulator / physical device
 
 - Use your machine’s LAN IP in `src/constants/index.js` instead of `localhost` when testing on a device.
-- Ensure backend is reachable on your network (e.g., firewall, port 8000).
+- Ensure backend is reachable on your network (e.g., firewall, port 8001).
 
 ---
 
@@ -227,4 +227,4 @@ npx expo start --clear
 ## 8. Next Steps
 
 1. Phase 2: Camera + image upload
-2. Phase 3: AI visualization (Stable Diffusion / ControlNet)
+2. Phase 3: AI visualization (Gemini API)

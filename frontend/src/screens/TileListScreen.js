@@ -28,44 +28,46 @@ export default function TileListScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-slate-50">
-        <ActivityIndicator size="large" color="#1e293b" />
-        <Text className="text-slate-600 mt-2">Loading tiles...</Text>
+      <View className="flex-1 justify-center items-center bg-[#e2e8f0]">
+        <ActivityIndicator size="large" color="#334155" />
+        <Text className="text-[#64748b] mt-2">Loading…</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center bg-slate-50 px-6">
-        <Text className="text-red-600 text-center">{error}</Text>
+      <View className="flex-1 justify-center items-center bg-[#e2e8f0] px-6">
+        <Text className="text-[#b91c1c] text-center font-medium">{error}</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <View className="px-4 py-2 bg-slate-100">
-        <Text className="text-slate-500 text-sm">
-          Manufacturer: {manufacturerName}
-        </Text>
+    <View className="flex-1 bg-[#e2e8f0]">
+      <View className="px-4 py-3">
+        <View className="bg-white rounded-xl px-4 py-3 border border-[#dbe4ef]">
+          <Text className="text-[#0f172a] font-semibold text-sm">Step 3 of 4</Text>
+          <Text className="text-[#64748b] text-sm mt-1">{manufacturerName}</Text>
+        </View>
       </View>
       <FlatList
         data={tiles}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 10 }}
         renderItem={({ item }) => (
           <Pressable
             onPress={() =>
               navigation.navigate("Colors", {
+                manufacturerId,
+                manufacturerName,
                 tileId: item.id,
                 tileName: item.name,
-                manufacturerName,
               })
             }
-            className="bg-white p-4 rounded-lg mb-2 active:opacity-80"
+            className="bg-white p-4 rounded-xl mb-3 border border-[#dbe4ef] active:opacity-90"
           >
-            <Text className="text-slate-800 font-medium">{item.name}</Text>
+            <Text className="text-[#1e293b] font-medium text-base">{item.name}</Text>
           </Pressable>
         )}
       />

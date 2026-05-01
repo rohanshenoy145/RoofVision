@@ -17,6 +17,7 @@ class Manufacturer(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, index=True)
     slug = Column(String(100), unique=True, index=True, nullable=True)
+    material_type = Column(String(50), nullable=True, index=True)  # "shingle", "tile", "metal"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship: one manufacturer has many tiles

@@ -9,5 +9,6 @@ Waterfall hierarchy: Manufacturer → Tile → Color
 from app.models.manufacturer import Manufacturer
 from app.models.tile import Tile
 from app.models.color import Color
+from app.models.visualization import Visualization
 
-__all__ = ["Manufacturer", "Tile", "Color"]
+__all__ = ["Manufacturer", "Tile", "Color", "Visualization"]
