@@ -60,6 +60,10 @@ logs/
 *.db
 *.sqlite3
 
+# Uploaded images (Option A: backend filesystem)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
 # Python
 *.pyc
 .mypy_cache/
