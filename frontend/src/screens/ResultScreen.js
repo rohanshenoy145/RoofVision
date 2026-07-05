@@ -1,19 +1,40 @@
 /**
- * Phase 3: Result screen — poll visualization job until completed or failed, then show image or error.
+ * Result screen — poll visualization job until completed or failed, then show compare UI.
  */
 import React, { useEffect, useState } from "react";
 import { View, Text, Image, ActivityIndicator, Pressable, Platform, Linking } from "react-native";
-import { api, getUploadBaseUrl } from "../api/client";
+import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
+import { api, resolveMediaUrl } from "../api/client";
+import ComparePreviewModal from "../components/ComparePreviewModal";
+import { COPY } from "../constants/copy";
+import { getRouteParams } from "../utils/routeParams";
 
 const POLL_INTERVAL_MS = 2500;
 
 export default function ResultScreen({ route, navigation }) {
-  const { visualizationId, manufacturerId, manufacturerName, tileId, tileName, colorId, colorName } = route.params;
+  const {
+    visualizationId,
+    manufacturerId,
+    manufacturerName,
+    tileId,
+    tileName,
+    colorId,
+    colorName,
+    materialType,
+    materialLabel,
+    inputQuality,
+  } = getRouteParams(route);
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
   const [actionMessage, setActionMessage] = useState(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   useEffect(() => {
+    if (!visualizationId) {
+      setError("Missing visualization id.");
+      return undefined;
+    }
     let cancelled = false;
     const poll = async () => {
       try {
@@ -28,7 +49,9 @@ export default function ResultScreen({ route, navigation }) {
       setTimeout(poll, POLL_INTERVAL_MS);
     };
     poll();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [visualizationId]);
 
   if (error) {
@@ -58,6 +81,18 @@ export default function ResultScreen({ route, navigation }) {
         <Text className="text-[#64748b] text-sm mt-2 text-center">
           {manufacturerName} → {tileName} → {colorName}
         </Text>
+        {inputQuality && inputQuality.level === "low" && (
+          <View className="mt-6 p-3 rounded-xl border bg-red-50 border-red-200 max-w-md">
+            <Text className="text-red-900 font-semibold">Photo quality: low</Text>
+            <Text className="text-red-950 text-sm mt-1 leading-5">{inputQuality.summary}</Text>
+          </View>
+        )}
+        {inputQuality && inputQuality.level === "medium" && (
+          <View className="mt-6 p-3 rounded-xl border bg-amber-50 border-amber-200 max-w-md">
+            <Text className="text-amber-900 font-semibold">Photo quality: fair</Text>
+            <Text className="text-amber-950 text-sm mt-1 leading-5">{inputQuality.summary}</Text>
+          </View>
+        )}
       </View>
     );
   }
@@ -74,7 +109,8 @@ export default function ResultScreen({ route, navigation }) {
   }
 
   if (job.status === "completed" && job.result_url) {
-    const resultFullUrl = getUploadBaseUrl() + job.result_url;
+    const resultFullUrl = resolveMediaUrl(job.result_url);
+    const originalFullUrl = resolveMediaUrl(job.image_url);
     const isMock = job.generator === "mock";
     const canRetry = manufacturerId && tileId && colorId;
 
@@ -87,39 +123,129 @@ export default function ResultScreen({ route, navigation }) {
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-        } else {
-          await Linking.openURL(resultFullUrl);
+          setActionMessage("Download started.");
+          return;
         }
-        setActionMessage("Image opened/downloaded.");
+        const perm = await MediaLibrary.requestPermissionsAsync();
+        if (perm.status !== "granted") {
+          setActionMessage("Photo library permission is required to save. Opening image instead…");
+          await Linking.openURL(resultFullUrl);
+          return;
+        }
+        if (!FileSystem.cacheDirectory) {
+          await Linking.openURL(resultFullUrl);
+          setActionMessage("Opened image — save manually if needed.");
+          return;
+        }
+        const ext = resultFullUrl.includes(".png") ? ".png" : ".jpg";
+        const target = `${FileSystem.cacheDirectory}roofvision-result-${visualizationId}${ext}`;
+        const { uri } = await FileSystem.downloadAsync(resultFullUrl, target);
+        await MediaLibrary.saveToLibraryAsync(uri);
+        setActionMessage("Saved to your photo library.");
       } catch {
-        setActionMessage("Could not save image right now.");
+        try {
+          await Linking.openURL(resultFullUrl);
+          setActionMessage("Opened image — save manually if needed.");
+        } catch {
+          setActionMessage("Could not save image right now.");
+        }
       }
     };
 
     return (
       <View className="flex-1 bg-[#e2e8f0] p-4">
-        <View className="bg-white rounded-xl p-3 mb-4 border border-[#dbe4ef]">
+        <View className="bg-white rounded-xl p-3 mb-2 border border-[#dbe4ef]">
           <Text className="text-[#64748b] text-sm">
             {manufacturerName} → {tileName} → {colorName}
           </Text>
         </View>
-        <Text className="text-[#1e293b] font-medium mb-2">Your roof visualization</Text>
+
+        <View className="bg-slate-100 rounded-xl p-3 mb-2 border border-slate-200">
+          <Text className="text-[#475569] text-xs leading-4">{COPY.aiPreviewShort}</Text>
+        </View>
+
+        {inputQuality && inputQuality.level === "low" && (
+          <View className="rounded-xl p-3 mb-2 border bg-red-50 border-red-200">
+            <Text className="text-red-900 font-semibold">Input quality: Low</Text>
+            <Text className="text-red-950 text-sm mt-1 leading-5">{inputQuality.summary}</Text>
+            {inputQuality.tips?.length > 0 && (
+              <Text className="text-[#334155] text-xs mt-2 leading-4">• {inputQuality.tips.join(" • ")}</Text>
+            )}
+          </View>
+        )}
+        {inputQuality && inputQuality.level === "medium" && (
+          <View className="rounded-xl p-3 mb-2 border bg-amber-50 border-amber-200">
+            <Text className="text-amber-900 font-semibold">Input quality: Fair</Text>
+            <Text className="text-amber-950 text-sm mt-1 leading-5">{inputQuality.summary}</Text>
+            {inputQuality.tips?.length > 0 && (
+              <Text className="text-[#334155] text-xs mt-2 leading-4">• {inputQuality.tips.join(" • ")}</Text>
+            )}
+          </View>
+        )}
+        {inputQuality && inputQuality.level === "good" && (
+          <View className="rounded-xl p-3 mb-2 border bg-emerald-50 border-emerald-200">
+            <Text className="text-emerald-900 font-semibold">Input quality: Good</Text>
+            <Text className="text-emerald-950 text-sm mt-1 leading-5">{inputQuality.summary}</Text>
+          </View>
+        )}
+
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-[#1e293b] font-medium">Original vs preview</Text>
+          {originalFullUrl && (
+            <Pressable
+              onPress={() => setCompareOpen(true)}
+              className="flex-row items-center gap-1 bg-[#1e293b] px-3 py-2 rounded-lg active:opacity-90"
+            >
+              <Text className="text-white text-sm">⊞</Text>
+              <Text className="text-white text-sm font-semibold">Expand compare</Text>
+            </Pressable>
+          )}
+        </View>
+
         {isMock && (
           <View className="bg-[#fffbeb] border border-[#fde68a] rounded-xl p-3 mb-2">
             <Text className="text-[#92400e] text-sm">
               {job.error_message ||
-                "Preview only - no image API configured. Set IMAGE_GEN_PROVIDER=gemini and IMAGE_GEN_API_KEY in backend .env, or see docs/IMAGE-GEN-API.md."}
+                "Preview only — mock result shows your uploaded photo. Configure Gemini on the server when you want cloud generation (see docs)."}
             </Text>
           </View>
         )}
-        <View className="rounded-xl overflow-hidden bg-[#e5e7eb] flex-1 min-h-[200px] border border-[#dbe4ef]">
-          <Image
-            source={{ uri: resultFullUrl }}
-            className="w-full flex-1"
-            style={{ minHeight: 200 }}
-            resizeMode="contain"
-          />
-        </View>
+
+        {originalFullUrl ? (
+          <View className="flex-1 min-h-[220px]">
+            <View className="flex-row flex-1 gap-2">
+              <View className="flex-1 rounded-xl overflow-hidden bg-[#e5e7eb] border border-[#dbe4ef]">
+                <Text className="text-center text-[#64748b] text-xs py-1 bg-[#f1f5f9]">Original</Text>
+                <Image
+                  source={{ uri: originalFullUrl }}
+                  className="w-full flex-1"
+                  style={{ minHeight: 160 }}
+                  resizeMode="contain"
+                />
+              </View>
+              <View className="flex-1 rounded-xl overflow-hidden bg-[#e5e7eb] border border-[#dbe4ef]">
+                <Text className="text-center text-[#64748b] text-xs py-1 bg-[#f1f5f9]">AI preview</Text>
+                <Image
+                  source={{ uri: resultFullUrl }}
+                  className="w-full flex-1"
+                  style={{ minHeight: 160 }}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View className="rounded-xl overflow-hidden bg-[#e5e7eb] flex-1 min-h-[200px] border border-[#dbe4ef] mb-2">
+            <Text className="text-center text-[#64748b] text-xs py-1">AI preview</Text>
+            <Image
+              source={{ uri: resultFullUrl }}
+              className="w-full flex-1"
+              style={{ minHeight: 200 }}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+
         <View className="flex-row gap-3 mt-3">
           <Pressable
             onPress={saveImage}
@@ -137,6 +263,8 @@ export default function ResultScreen({ route, navigation }) {
                 tileName,
                 colorId,
                 colorName,
+                materialType,
+                materialLabel,
               })
             }
             className="flex-1 bg-white py-3 rounded-xl border border-[#dbe4ef] active:opacity-90 disabled:opacity-40"
@@ -146,6 +274,15 @@ export default function ResultScreen({ route, navigation }) {
         </View>
         {actionMessage && (
           <Text className="text-[#475569] text-xs text-center mt-2">{actionMessage}</Text>
+        )}
+
+        {originalFullUrl && (
+          <ComparePreviewModal
+            visible={compareOpen}
+            onClose={() => setCompareOpen(false)}
+            originalUri={originalFullUrl}
+            resultUri={resultFullUrl}
+          />
         )}
       </View>
     );

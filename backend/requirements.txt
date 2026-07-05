@@ -14,9 +14,17 @@ email-validator==2.2.0
 
 # CORS & Middleware
 python-multipart==0.0.18
+slowapi==0.1.9
 
 # Phase 3: cloud image API
 requests==2.32.3
+
+# Optional — install when enabling cloud storage or Sentry (see docs/DEPLOY.md)
+google-cloud-storage>=2.18.0
+boto3>=1.35.0
+sentry-sdk[fastapi]>=2.19.0
+
+# Google OAuth id_token verification + RoofVision JWT (future auth)
 
 # Dev / Testing (optional)
 # pytest==8.3.4

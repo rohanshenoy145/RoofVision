@@ -7,7 +7,6 @@ Configure IMAGE_GEN_PROVIDER + IMAGE_GEN_API_KEY in .env — see docs/IMAGE-GEN-
 On failure, falls back to mock (copy input) so the user always gets a result.
 """
 import logging
-import shutil
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -17,10 +16,9 @@ from app.database import SessionLocal
 from app.models import Color, Manufacturer, Tile, Visualization
 from app.services.ai_agent import AIAgent
 from app.services.image_providers.base import ImageGenRequest
+from app.services.storage import get_storage
 
 logger = logging.getLogger(__name__)
-
-UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 
 
 def _build_prompt(db: Session, manufacturer_id: int, tile_id: int, color_id: int) -> str:
@@ -40,7 +38,6 @@ def _build_prompt(db: Session, manufacturer_id: int, tile_id: int, color_id: int
     material_type = (m.material_type if m and m.material_type else "shingle").lower()
     color_hex = c.hex_code if c and c.hex_code else None
 
-    # Product-profile hints to make geometry/texture changes more visible.
     style_hints_by_slug = {
         "timberline-hdz": "architectural laminated asphalt shingles with dimensional shadow lines and staggered tab pattern",
         "landmark": "architectural laminated shingles with medium-relief texture and layered courses",
@@ -70,16 +67,14 @@ def _build_prompt(db: Session, manufacturer_id: int, tile_id: int, color_id: int
     )
 
 
-def _mock_copy_to_result(viz: Visualization) -> Path:
-    """Copy input image to result file. Returns path to result file."""
-    src = UPLOADS_DIR / viz.image_path
-    if not src.exists():
-        raise FileNotFoundError(f"Input image not found: {src}")
-    ext = src.suffix or ".jpg"
-    result_filename = f"result_{viz.id}{ext}"
-    dest = UPLOADS_DIR / result_filename
-    shutil.copy2(src, dest)
-    return dest
+def _mock_copy_to_result(viz: Visualization, storage) -> str:
+    """Copy input image to result file. Returns result key."""
+    if not storage.exists(viz.image_path):
+        raise FileNotFoundError(f"Input image not found: {viz.image_path}")
+    ext = Path(viz.image_path).suffix or ".jpg"
+    result_key = f"result_{viz.id}{ext}"
+    storage.copy(viz.image_path, result_key)
+    return result_key
 
 
 def run_generation(viz_id: int, db: Session | None = None) -> None:
@@ -106,6 +101,8 @@ def _run_generation_impl(viz_id: int, db: Session) -> None:
         logger.info("Visualization %s already completed, skipping", viz_id)
         return
 
+    storage = get_storage()
+
     db.query(Visualization).filter(Visualization.id == viz_id).update(
         {"status": "processing"},
         synchronize_session="fetch",
@@ -113,12 +110,11 @@ def _run_generation_impl(viz_id: int, db: Session) -> None:
     db.commit()
 
     try:
-        input_path = UPLOADS_DIR / viz.image_path
-        if not input_path.exists():
+        if not storage.exists(viz.image_path):
             raise FileNotFoundError(f"Input image not found: {viz.image_path}")
 
         prompt = _build_prompt(db, viz.manufacturer_id, viz.tile_id, viz.color_id)
-        image_bytes = input_path.read_bytes()
+        image_bytes = storage.read_bytes(viz.image_path)
 
         agent = AIAgent()
         generator_id = agent.id
@@ -126,8 +122,7 @@ def _run_generation_impl(viz_id: int, db: Session) -> None:
         try:
             fallback_reason = None
             if generator_id == "mock":
-                result_path = _mock_copy_to_result(viz)
-                result_filename = result_path.name
+                result_filename = _mock_copy_to_result(viz, storage)
             else:
                 gen_req = ImageGenRequest(
                     image_bytes=image_bytes,
@@ -140,7 +135,7 @@ def _run_generation_impl(viz_id: int, db: Session) -> None:
                 )
                 out_bytes = agent.generate_visualization(gen_req)
                 result_filename = f"result_{viz.id}.png"
-                (UPLOADS_DIR / result_filename).write_bytes(out_bytes)
+                storage.save(result_filename, out_bytes, content_type="image/png")
         except Exception as e:
             e_text = str(e)
             if "429" in e_text:
@@ -153,8 +148,7 @@ def _run_generation_impl(viz_id: int, db: Session) -> None:
                 e,
                 viz_id,
             )
-            result_path = _mock_copy_to_result(viz)
-            result_filename = result_path.name
+            result_filename = _mock_copy_to_result(viz, storage)
             generator_id = "mock"
 
         db.query(Visualization).filter(Visualization.id == viz_id).update(

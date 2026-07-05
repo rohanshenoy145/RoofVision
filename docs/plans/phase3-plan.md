@@ -1,6 +1,6 @@
 # Phase 3 — AI roof visualization
 
-**Status:** In progress
+**Status:** MVP complete (ongoing improvements: accuracy, compliance UX, performance)
 
 ---
 
@@ -28,17 +28,18 @@ See [IMAGE-GEN-API.md](../IMAGE-GEN-API.md).
 - [x] `GET /visualizations/{id}` — return job with status, image_url, result_url (when completed), error_message (when failed).
 - [x] AI service: `app/services/generator.py` + `app/services/image_providers/` + `app/services/ai_agent.py` — mock or Gemini; save result to `uploads/`; update job.
 - [x] Trigger generation in background after `POST /visualizations` (FastAPI `BackgroundTasks`). Idempotent: if job already `completed`, skip.
-- [x] Config: `IMAGE_GEN_PROVIDER`, `IMAGE_GEN_API_KEY`, `IMAGE_GEN_MODEL`, `IMAGE_GEN_TIMEOUT_SECONDS`.
+- [x] Config: `IMAGE_GEN_PROVIDER`, `IMAGE_GEN_API_KEY`, `IMAGE_GEN_MODEL`, `IMAGE_GEN_TIMEOUT_SECONDS`, `IMAGE_GEN_MAX_RETRIES`, `IMAGE_GEN_RETRY_BACKOFF_SECONDS`.
 
 ### Frontend
 
 - [x] After “Save to server” succeeds, navigate to **Result** screen with visualization `id`.
 - [x] Result screen: poll `GET /visualizations/{id}` every 2–3 s; show “Generating…”, then result image or error.
-- [x] Success: show generated image; error: show message.
+- [x] Success: show generated image; optional **Save** / **Try another photo**; mock path can show server `error_message`.
+- [ ] Product copy: onboarding + persistent “AI preview — approximate” per [COMPLIANCE-AND-COPY.md](../COMPLIANCE-AND-COPY.md).
 
 ### Mapping selection → prompt
 
-- [x] Backend loads manufacturer, tile, color names from DB and builds prompt, e.g. `"house with [manufacturer] [tile] [color] roof shingles, photorealistic"`.
+- [x] Backend loads manufacturer, tile, color from DB and builds a **roof-only** prompt: preserves house context, emphasizes **pattern geometry + texture** (slug + material hints), optional **hex** color anchor.
 
 ### Docs
 
@@ -60,4 +61,4 @@ See [IMAGE-GEN-API.md](../IMAGE-GEN-API.md).
 
 ## Out of scope (Phase 4)
 
-- User accounts; “My visualizations” list; edit/delete; rate limiting.
+- User accounts; “My visualizations” list; edit/delete; server-side per-user rate limits (client retries exist today).

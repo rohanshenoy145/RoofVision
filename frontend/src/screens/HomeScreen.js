@@ -3,6 +3,7 @@
  */
 import React from "react";
 import { View, Text, Pressable } from "react-native";
+import { COPY } from "../constants/copy";
 
 export default function HomeScreen({ navigation }) {
   return (
@@ -13,6 +14,7 @@ export default function HomeScreen({ navigation }) {
         <Text className="text-[#cbd5e1] mt-3 text-base leading-6">
           Visualize new roof styles with realistic AI previews before you commit.
         </Text>
+        <Text className="text-[#94a3b8] text-xs mt-4 leading-5 border-t border-[#334155] pt-4">{COPY.aiPreviewShort}</Text>
       </View>
 
       <View className="px-6 -mt-7">

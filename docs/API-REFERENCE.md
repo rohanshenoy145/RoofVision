@@ -4,13 +4,15 @@ Base URL: `http://localhost:8001/api/v1` (or your backend host).
 
 All list endpoints return JSON arrays. 404 returned when a parent resource does not exist.
 
+**CORS:** Browser origins are controlled by `CORS_ORIGINS` in `backend/.env` (see `docs/POC-TO-APP-STORE.md`). Unset = allow all (`*`) for local dev.
+
 ---
 
 ## Health
 
 ### GET /health
 
-Check that the API is up.
+Liveness: process is up (does **not** check the database).
 
 **Response:** `200 OK`
 
@@ -23,18 +25,42 @@ Check that the API is up.
 
 ---
 
+### GET /health/ready
+
+Readiness: verifies database connectivity (`SELECT 1`).
+
+**Response:** `200 OK`
+
+```json
+{
+  "status": "ready",
+  "service": "RoofVision API",
+  "database": "ok"
+}
+```
+
+**Errors:** `503` — database unavailable (use for Kubernetes readiness probes).
+
+---
+
 ## Manufacturers
 
 ### GET /manufacturers
 
-List all manufacturers. Ordered by name.
+List manufacturers, ordered by name. Optional query: **`material_type`** — filter to `shingle`, `tile`, or `metal` (case-insensitive; matches `manufacturers.material_type`).
+
+**Query parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| material_type | string (optional) | `shingle`, `tile`, or `metal` |
 
 **Response:** `200 OK`
 
 ```json
 [
-  { "id": 1, "name": "GAF", "slug": "gaf" },
-  { "id": 2, "name": "CertainTeed", "slug": "certainteed" }
+  { "id": 1, "name": "GAF", "slug": "gaf", "material_type": "shingle" },
+  { "id": 2, "name": "CertainTeed", "slug": "certainteed", "material_type": "shingle" }
 ]
 ```
 
@@ -122,11 +148,15 @@ Upload a house image with manufacturer/tile/color selection. Image is stored in 
   "status": "pending",
   "result_url": null,
   "error_message": null,
+  "generator": null,
   "created_at": "2025-02-08T12:00:00Z"
 }
 ```
 
-**Errors:** `400` for invalid file type or file too large.
+**Errors:**
+
+- `400` — invalid file type or file too large.
+- `429 Too Many Requests` — per-IP rate limit exceeded (SlowAPI; tune `RATE_LIMIT_UPLOAD` in `backend/.env`).
 
 ---
 
@@ -147,11 +177,12 @@ Get job status and result. Poll until `status` is `completed` or `failed`.
   "status": "completed",
   "result_url": "/api/v1/uploads/result_1.png",
   "error_message": null,
+  "generator": "gemini",
   "created_at": "2025-02-08T12:00:00Z"
 }
 ```
 
-When `status` is `failed`, `error_message` is set. When `status` is `completed`, `result_url` is the path to the generated image.
+When `status` is `failed`, `error_message` is set. When `status` is `completed`, `result_url` is the path to the generated image and **`generator`** is `gemini` or `mock` (mock may be used after a failed cloud attempt).
 
 **Errors:** `404` if visualization not found.
 

@@ -8,9 +8,9 @@ A high-level view of where the product is today and what’s next. Written so an
 
 **RoofVision** lets roofers:
 
-1. Take or choose a photo of a house  
-2. Pick a manufacturer, then a tile, then a color  
-3. Get an AI-generated picture of what that roof would look like with those choices  
+1. Choose a roof material type (tile, shingle, metal), then a manufacturer, product line, and color  
+2. Take or choose a photo of a house  
+3. Get an AI-generated **preview** of what that roof style could look like (approximate, not an official match)  
 
 The roadmap below breaks this into phases: what’s done and what’s coming.
 
@@ -18,12 +18,12 @@ The roadmap below breaks this into phases: what’s done and what’s coming.
 
 ## Phase 1 — Catalog & selection flow ✅ *Completed*
 
-**Goal:** User can open the app and walk through manufacturer → tile → color without taking a photo or generating anything yet.
+**Goal:** User can open the app and walk through material type → manufacturer → product (tile) → color without taking a photo or generating anything yet.
 
 **What we built:**
 
 - **App opens** to a simple home screen with a “Start” button.
-- **First step:** User sees a list of roof manufacturers (e.g. GAF, CertainTeed, Owens Corning).
+- **First step:** User picks a **material type** (tile, shingle, or metal), then sees manufacturers filtered to that type.
 - **Second step:** After picking a manufacturer, user sees that brand’s product lines (tiles).
 - **Third step:** After picking a tile, user sees the available colors, with small color swatches where possible.
 - **Under the hood:** The app talks to a small backend that stores and serves this catalog. Everything runs on your own machine (or a server you control) for now.
@@ -40,10 +40,10 @@ The roadmap below breaks this into phases: what’s done and what’s coming.
 
 **What we built:**
 
-- **Flow:** Pick options first (manufacturer → tile → color), then add photo. Tapping a color goes to the Add Photo screen.
+- **Flow:** Pick options first (material → manufacturer → tile → color), then add photo. Tapping a color goes to the Add Photo screen.
 - **Camera / gallery** — “Choose from library” (web + device; on web it’s a file picker) and “Take photo” (device only).
-- **Send to backend** — User sees a compact preview and must tap **“Save to server”** to persist. The app uploads the image plus manufacturer/tile/color IDs. Backend stores the file in `backend/uploads/` (Option A: filesystem) and a row in the `visualizations` table.
-- **UX:** Compact image preview (200px), clear save button and hint text, success message that explains data is saved on the server (refreshing the app returns to start; no list of past uploads yet).
+- **Send to backend** — User sees a compact preview and confirms upload. The app sends the image plus manufacturer/tile/color IDs. Backend stores the file in `backend/uploads/` (Option A: filesystem) and a row in the `visualizations` table.
+- **UX:** Compact image preview, clear confirm action and hint text, success feedback; refreshing the app returns to start (no history list yet).
 
 **Why it matters:** We now have “this house + this roof choice” stored together. Phase 3 will use that to generate the visualization.
 
@@ -55,14 +55,14 @@ The roadmap below breaks this into phases: what’s done and what’s coming.
 
 **Goal:** After the user sends a photo and their choices, they get back an AI-generated image of the roof with the selected look.
 
-**What we’ll build:**
+**What we built:**
 
-- **Backend calls an AI service** — Gemini image model to generate “this house with this roof style/color.” (With mock fallback if needed.)
-- **User sees the result** — A result screen shows “Generating…” then the generated image (or an error).
+- **Backend calls an AI service** — Gemini image model (or **mock**, which returns the input image) using a roof-focused prompt built from the catalog.
+- **User sees the result** — A result screen polls until “Generating…” resolves to the image or an error; optional save / try another photo in the app.
 
-**Why it matters:** This is the core value: “See your house with this roof before you buy.”
+**Why it matters:** This is the core value: a quick visual **preview** to discuss options with homeowners—not a warranty or official color match.
 
-**Status:** Implemented (mock + Gemini cloud). See [IMAGE-GEN-API.md](./IMAGE-GEN-API.md) for setup and fallback behavior.
+**Status:** Implemented (mock + Gemini cloud, retries + mock fallback on failure). See [IMAGE-GEN-API.md](./IMAGE-GEN-API.md). For product language guardrails, see [COMPLIANCE-AND-COPY.md](./COMPLIANCE-AND-COPY.md).
 
 ---
 
@@ -77,26 +77,26 @@ The roadmap below breaks this into phases: what’s done and what’s coming.
 - **Better performance** — Handling large images, timeouts, retries.
 - **Production hosting** — Running the backend and (if needed) AI on a proper server with backups and monitoring.
 
-**Status:** Not started. We’ll plan this once Phases 2 and 3 are in place.
+**Status:** Not started. Plan once you want accounts, history, production hosting, or stronger compliance UX in-app.
 
 ---
 
 ## Visual timeline
 
 ```
-Phase 1 ✅ ——— Phase 2 ✅ ——— Phase 3 ——— Phase 4
-  Done          Photo in      AI image    Polish &
-                & upload      result      scale
-                (done)
+Phase 1 ✅ ——— Phase 2 ✅ ——— Phase 3 ✅ ——— Phase 4
+  Done          Photo in      AI preview  Polish &
+                & upload      (mock +     scale
+                (done)      Gemini)
 ```
 
 ---
 
 ## What’s next right now
 
-**Current:** Phase 3 is in place (mock + Gemini cloud image API). To get **real** generated images: set `IMAGE_GEN_PROVIDER=gemini` and `IMAGE_GEN_API_KEY` in `backend/.env` (see [IMAGE-GEN-API.md](./IMAGE-GEN-API.md)); on failure the app falls back to mock. See [WHERE-WE-ARE.md](./WHERE-WE-ARE.md).
+**Current:** Phases 1–3 are done. For cloud generation: set `IMAGE_GEN_PROVIDER=gemini` and `IMAGE_GEN_API_KEY` in `backend/.env` (see [IMAGE-GEN-API.md](./IMAGE-GEN-API.md)); on failure the backend falls back to mock and may set `error_message`. See [WHERE-WE-ARE.md](./WHERE-WE-ARE.md) and [COMPLIANCE-AND-COPY.md](./COMPLIANCE-AND-COPY.md).
 
-See “Phase 2 complete?” below to confirm nothing is left to test before Phase 3.
+The “Phase 2 complete?” checklist below remains useful for regression testing uploads.
 
 ---
 
@@ -106,7 +106,7 @@ Use this to confirm Phase 2 is done and nothing critical is left to test:
 
 | Check | What to verify |
 |-------|----------------|
-| **Upload works** | Pick manufacturer → tile → color → Add Photo → choose image → tap “Save to server”. Green “Saved” appears; no error. |
+| **Upload works** | Pick material → manufacturer → tile → color → Add Photo → choose image → confirm upload. Success feedback; no error. |
 | **File on disk** | After a successful save, a new file exists in `backend/uploads/` (e.g. `*.jpg`). |
 | **Record in DB** | A new row exists in the `visualizations` table with the correct `image_path`, `manufacturer_id`, `tile_id`, `color_id`, `status=pending`. |
 | **Image viewable** | Opening `http://localhost:8001/api/v1/uploads/{filename}` in a browser shows the uploaded image. |

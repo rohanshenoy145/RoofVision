@@ -22,6 +22,8 @@ Documentation for the RoofVision project — a cross-platform app for roofers to
 | [**FRONTEND.md**](./FRONTEND.md) | Frontend structure, screens, and navigation |
 | [**API-REFERENCE.md**](./API-REFERENCE.md) | REST API endpoints and examples |
 | [**IMAGE-GEN-API.md**](./IMAGE-GEN-API.md) | **Image generation** — Gemini API + mock fallback |
+| [**COMPLIANCE-AND-COPY.md**](./COMPLIANCE-AND-COPY.md) | **Compliance & UX copy** — previews vs claims, disclaimers, scope |
+| [**POC-TO-APP-STORE.md**](./POC-TO-APP-STORE.md) | **POC → store** — gaps checklist, deploy/security, mobile testing |
 | [**plans/**](./plans/README.md) | **Phase plans** — phase1, phase2, phase3 |
 
 ---

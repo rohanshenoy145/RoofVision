@@ -2,18 +2,18 @@
 Visualization upload and status. Phase 2: upload. Phase 3: background generation, GET by id.
 """
 import uuid
-from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
+from app.rate_limit import limiter
 from app.models import Visualization
 from app.schemas.visualization import VisualizationResponse
 from app.services.generator import run_generation
+from app.services.storage import get_storage
 
-# Directory for uploaded images (backend/uploads/). Created on startup in main.py.
-UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE_MB = 10
 MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
@@ -27,8 +27,9 @@ def _get_extension(content_type: str) -> str:
 
 
 def _viz_to_response(viz: Visualization) -> VisualizationResponse:
-    image_url = f"/api/v1/uploads/{viz.image_path}"
-    result_url = f"/api/v1/uploads/{viz.result_path}" if viz.result_path else None
+    storage = get_storage()
+    image_url = storage.public_url(viz.image_path)
+    result_url = storage.public_url(viz.result_path) if viz.result_path else None
     return VisualizationResponse(
         id=viz.id,
         image_path=viz.image_path,
@@ -54,7 +55,9 @@ def get_visualization(viz_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=VisualizationResponse, status_code=201)
+@limiter.limit(settings.RATE_LIMIT_UPLOAD)
 async def create_visualization(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     manufacturer_id: int = Form(...),
@@ -63,7 +66,7 @@ async def create_visualization(
     db: Session = Depends(get_db),
 ):
     """
-    Upload a house image with selection. Image is stored in backend/uploads/;
+    Upload a house image with selection. Image is stored via configured storage backend;
     metadata is stored in DB. Generation runs in the background (mock or Gemini).
     Poll GET /visualizations/{id} for status and result_url.
     """
@@ -80,8 +83,8 @@ async def create_visualization(
         )
     ext = _get_extension(file.content_type or "")
     filename = f"{uuid.uuid4().hex}{ext}"
-    path = UPLOADS_DIR / filename
-    path.write_bytes(content)
+    storage = get_storage()
+    storage.save(filename, content, content_type=file.content_type or "image/jpeg")
 
     viz = Visualization(
         image_path=filename,
