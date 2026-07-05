@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_HIDE_DEMO_GOOGLE": "1",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.roofvision.example.com/api/v1",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://roofvision.example.com/privacy",
+        "EXPO_PUBLIC_TERMS_OF_USE_URL": "https://roofvision.example.com/terms",
+        "EXPO_PUBLIC_SUPPORT_URL": "mailto:support@roofvision.example.com"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_HIDE_DEMO_GOOGLE": "1",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.roofvision.example.com/api/v1",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://roofvision.example.com/privacy",
+        "EXPO_PUBLIC_TERMS_OF_USE_URL": "https://roofvision.example.com/terms",
+        "EXPO_PUBLIC_SUPPORT_URL": "mailto:support@roofvision.example.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "YOUR_APPLE_ID_EMAIL",
+        "ascAppId": "PLACEHOLDER_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "PLACEHOLDER_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

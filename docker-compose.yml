@@ -1,0 +1,19 @@
+# Optional local Postgres for production-like dev.
+# Usage: docker compose up -d postgres
+# Then set in backend/.env:
+#   DATABASE_URL=postgresql://roofvision:roofvision@localhost:5432/roofvision
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: roofvision
+      POSTGRES_PASSWORD: roofvision
+      POSTGRES_DB: roofvision
+    volumes:
+      - roofvision_pg_data:/var/lib/postgresql/data
+
+volumes:
+  roofvision_pg_data:

@@ -52,8 +52,7 @@ Change `IMAGE_GEN_MODEL` to another Gemini image-capable model as needed.
 ## Behavior
 
 1. User uploads a house photo and completes selection.
-2. Backend builds a prompt like:  
-   `house with {manufacturer} {tile} {color} roof shingles, photorealistic, high quality`
+2. Backend builds a **roof-only** prompt from catalog data: manufacturer + tile + color names, optional **hex** color anchor, **material type** (tile / shingle / metal), and **tile slug**–specific geometry/texture hints when known (otherwise a default hint per material). The prompt asks to replace only the roof, preserve house angle and non-roof areas, and emphasize pattern geometry and granular texture.
 3. `get_image_provider()` runs the configured provider.
 4. If the provider **fails** (network, quota, error), the backend **falls back to mock** so the user still sees a result (their original photo).
 5. `Visualization.generator` is set to `mock` or `gemini` for the UI.

@@ -10,32 +10,34 @@ Python FastAPI backend: REST API, SQLAlchemy (SQLite/PostgreSQL), Pydantic.
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI app, CORS, lifespan, router
-│   ├── config.py            # Pydantic Settings (DATABASE_URL, etc.)
+│   ├── main.py              # FastAPI app, CORS, lifespan, router, rate-limit handler
+│   ├── config.py            # Pydantic Settings (DATABASE_URL, CORS_ORIGINS, RATE_LIMIT_UPLOAD, …)
 │   ├── database.py          # Engine, SessionLocal, Base, get_db
+│   ├── rate_limit.py        # SlowAPI limiter (shared instance)
 │   ├── api/
 │   │   ├── __init__.py      # Aggregates all routers
-│   │   ├── health.py        # GET /health
+│   │   ├── health.py        # GET /health, GET /health/ready
 │   │   ├── manufacturers.py
 │   │   ├── tiles.py
 │   │   ├── colors.py
-│   │   └── visualizations.py  # Phase 2: POST /visualizations, file save
+│   │   └── visualizations.py  # POST /visualizations, uploads
 │   ├── models/              # SQLAlchemy ORM
 │   │   ├── __init__.py
 │   │   ├── manufacturer.py
 │   │   ├── tile.py
 │   │   ├── color.py
-│   │   └── visualization.py   # Phase 2: image_path, manufacturer_id, tile_id, color_id, status
-│   └── schemas/             # Pydantic request/response
-│       ├── __init__.py
-│       ├── manufacturer.py
-│       ├── tile.py
-│       ├── color.py
-│       └── visualization.py
+│   │   └── visualization.py   # Upload job: paths, status, generator, errors
+│   ├── schemas/             # Pydantic request/response
+│   │   ├── __init__.py
+│   │   ├── manufacturer.py
+│   │   ├── tile.py
+│   │   ├── color.py
+│   │   └── visualization.py
+│   └── services/            # generator, ai_agent, image_providers
 ├── scripts/
 │   ├── __init__.py
 │   └── seed_data.py         # Sample manufacturers, tiles, colors
-├── uploads/                 # Phase 2: stored images (Option A: filesystem); .gitignore contents
+├── uploads/                 # Stored images (Option A: filesystem); .gitignore contents
 ├── requirements.txt
 ├── run.py                   # uvicorn entry point
 ├── .env.example
@@ -50,7 +52,7 @@ backend/
 
 | Model | Table | Key columns |
 |-------|-------|-------------|
-| **Manufacturer** | `manufacturers` | id, name, slug |
+| **Manufacturer** | `manufacturers` | id, name, slug, `material_type` (tile / shingle / metal) |
 | **Tile** | `tiles` | id, manufacturer_id (FK), name, slug |
 | **Color** | `colors` | id, tile_id (FK), name, hex_code, image_url |
 
@@ -58,7 +60,7 @@ backend/
 
 | Model | Table | Key columns |
 |-------|-------|-------------|
-| **Visualization** | `visualizations` | id, image_path (filename in uploads/), manufacturer_id, tile_id, color_id, status (pending/…), created_at |
+| **Visualization** | `visualizations` | id, image_path, manufacturer_id, tile_id, color_id, status, `result_path`, `error_message`, `generator`, created_at |
 
 - Cascade: deleting a manufacturer deletes its tiles and their colors.
 - `created_at` on all tables (optional for auditing).
@@ -68,7 +70,7 @@ backend/
 
 ## Config & database
 
-- **config.py:** `Settings` from pydantic-settings; reads `.env` (e.g. `DATABASE_URL`).
+- **config.py:** `Settings` from pydantic-settings; reads `.env` (e.g. `DATABASE_URL`, `IMAGE_GEN_*`, `CORS_ORIGINS`, `RATE_LIMIT_UPLOAD`). Unknown env keys are ignored so stale local vars do not crash startup.
 - **database.py:** `create_engine(DATABASE_URL)`. For SQLite, `check_same_thread=False` for FastAPI.
 - **main.py lifespan:** `Base.metadata.create_all(bind=engine)` so tables exist on startup (no Alembic required for dev).
 

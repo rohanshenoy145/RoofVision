@@ -1,6 +1,6 @@
 # RoofVision — Ground Zero Setup Guide
 
-Cross-platform mobile app for roofers: photo → manufacturer/tile/color selection → AI roof visualization.
+Cross-platform app for roofers: material type → manufacturer → product → color → house photo → AI roof **preview** (Gemini or mock). See `docs/COMPLIANCE-AND-COPY.md` for product-language guardrails.
 
 ---
 
@@ -50,7 +50,7 @@ cp .env.example .env
 python -m scripts.seed_data
 ```
 
-Populates manufacturers (GAF, CertainTeed, Owens Corning), tiles, and colors.
+Populates manufacturers (with `material_type`), tiles, and colors.
 
 ### Run the Server
 
@@ -69,9 +69,10 @@ Docs: http://localhost:8001/docs
 backend/
 ├── app/
 │   ├── main.py, config.py, database.py
-│   ├── api/              # health, manufacturers, tiles, colors
-│   ├── models/           # Manufacturer, Tile, Color
-│   └── schemas/          # Pydantic response schemas
+│   ├── api/              # health, manufacturers, tiles, colors, visualizations, uploads
+│   ├── models/           # Manufacturer, Tile, Color, Visualization
+│   ├── schemas/          # Pydantic request/response schemas
+│   └── services/         # generator, ai_agent, image_providers (Gemini + mock)
 ├── scripts/
 │   └── seed_data.py      # Sample manufacturers/tiles/colors
 ├── requirements.txt
@@ -164,6 +165,7 @@ frontend/
 | react-native-reanimated      | Animations (NativeWind dep)|
 | lucide-react-native          | Icons                      |
 | react-native-svg             | SVG support (icons)        |
+| @react-native-async-storage/async-storage | Persist auth + onboarding on device |
 
 ### Backend Dependencies
 
@@ -215,16 +217,23 @@ npx expo start --clear
 
 ---
 
-## 7. Running Phase 1 (Selection Flow)
+## 7. Running the full flow (catalog → photo → result)
 
-1. **Backend:** `cd backend && source venv/bin/activate && python -m scripts.seed_data && python run.py`
-2. **Frontend:** `cd frontend && npx expo start --web` (or `npx expo start` for Expo Go)
-3. Open http://localhost:8082 (web) or scan QR for mobile
-4. Tap **Start Selection** → pick Manufacturer → Tile → Color
+1. **Backend:** `cd backend && source venv/bin/activate && python -m scripts.seed_data && python run.py` (API on port **8001** unless you override it).
+2. **Frontend:** `cd frontend && npx expo start --web` (or `npx expo start` for Expo Go).
+3. Open the **localhost URL** Expo prints for web (port varies; often **8081**), or scan the QR code for mobile.
+4. Tap **Start** → **Material** → manufacturer → tile → color → add photo → wait on **Result** (mock returns the same photo until Gemini is configured in `.env`).
 
 ---
 
-## 8. Next Steps
+## 8. Next steps
 
-1. Phase 2: Camera + image upload
-2. Phase 3: AI visualization (Gemini API)
+Phases 1–3 are implemented. For cloud generation, set `IMAGE_GEN_PROVIDER=gemini` and `IMAGE_GEN_API_KEY` in `backend/.env` — see `docs/IMAGE-GEN-API.md`. Deeper architecture: `docs/ARCHITECTURE.md`, `docs/WHERE-WE-ARE.md`.
+
+**Production / store checklist (no AWS required to read):** [docs/POC-TO-APP-STORE.md](docs/POC-TO-APP-STORE.md) — includes what is already implemented in code (CORS env, health/ready, upload rate limit, EAS scaffolding) vs what you still configure (hosting, secrets, legal URLs).
+
+**Frontend env template:** `frontend/.env.example` — `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_HIDE_DEMO_GOOGLE`, `EXPO_PUBLIC_PRIVACY_POLICY_URL`.
+
+**Backend env extras:** `backend/.env.example` — `CORS_ORIGINS`, `RATE_LIMIT_UPLOAD`.
+
+If Metro hits file-watcher limits on macOS, install [Watchman](https://facebook.github.io/watchman/) or serve a static web build: `cd frontend && npx expo export --platform web` then `cd dist && python3 -m http.server 8090` (see POC doc).

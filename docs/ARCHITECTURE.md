@@ -24,7 +24,7 @@
 │            │                                      │  (SQLAlchemy)    │   │
 │            │                                      └──────────────────┘   │
 │            │                                                             │
-│            │  (Phase 2: image upload → Phase 3: AI service)               │
+│            │  (Phase 2: upload → Phase 3: AI agent + Gemini image API)      │
 │            └─────────────────────────────────────────────────────────────│
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -42,8 +42,8 @@ flowchart TB
 
     subgraph Frontend["Frontend (React Native + Expo)"]
         App["App.js\nSafeAreaProvider, NavigationContainer"]
-        Nav["AppNavigator\nStack: Home → Manufacturers → Tiles → Colors"]
-        Screens["Screens\nHome, ManufacturerList, TileList, ColorList"]
+        Nav["AppNavigator\nStack: Home → Material → … → Result"]
+        Screens["Screens\nHome, Material, Lists, AddPhoto, Result"]
         APIClient["src/api/client.js\nfetch wrapper"]
         App --> Nav --> Screens
         Screens --> APIClient
@@ -56,16 +56,18 @@ flowchart TB
         Manufacturers["GET /manufacturers"]
         Tiles["GET /manufacturers/:id/tiles"]
         Colors["GET /tiles/:id/colors"]
+        Viz["POST/GET /visualizations"]
         Main --> Router
         Router --> Health
         Router --> Manufacturers
         Router --> Tiles
         Router --> Colors
+        Router --> Viz
     end
 
     subgraph Data["Data layer"]
         DB[(SQLite / PostgreSQL)]
-        Models["Models\nManufacturer, Tile, Color"]
+        Models["Models\nManufacturer, Tile, Color, Visualization"]
         Backend --> Models
         Models --> DB
     end
@@ -86,8 +88,8 @@ sequenceDiagram
     participant B as Backend
     participant DB as Database
 
-    U->>F: Tap "Start Selection"
-    F->>B: GET /api/v1/manufacturers
+    U->>F: Tap Start → choose material
+    F->>B: GET /api/v1/manufacturers?material_type=...
     B->>DB: Query manufacturers
     DB-->>B: Rows
     B-->>F: JSON list
@@ -113,7 +115,7 @@ sequenceDiagram
 ## Backend request path
 
 1. **Request** hits `main.py` → CORS middleware → router at `/api/v1`.
-2. **Router** dispatches to the correct module (health, manufacturers, tiles, colors).
+2. **Router** dispatches to the correct module (health, manufacturers, tiles, colors, visualizations).
 3. **Route** uses `get_db()` dependency → gets a SQLAlchemy `Session`.
 4. **Query** runs against models (Manufacturer, Tile, Color).
 5. **Pydantic schemas** serialize the response; FastAPI returns JSON.
@@ -122,10 +124,11 @@ sequenceDiagram
 
 ## Frontend request path
 
-1. **User** taps a list item; screen calls `navigation.navigate(nextScreen, params)`.
-2. **Next screen** mounts, `useEffect` runs, calls `api.getTilesByManufacturer(id)` (or similar).
-3. **API client** (`src/api/client.js`) builds URL from `API_BASE_URL` + path, uses `fetch`.
-4. **Response** is set in state; list renders. Errors show a message.
+1. **Cold start:** `AuthProvider` hydrates user + onboarding flags from AsyncStorage; `RootNavigator` shows auth, onboarding, or the main stack.
+2. **User** taps a list item; screen calls `navigation.navigate(nextScreen, params)`.
+3. **Next screen** mounts, `useEffect` runs, calls `api.getTilesByManufacturer(id)` (or similar).
+4. **API client** (`src/api/client.js`) builds URL from `API_BASE_URL` + path, uses `fetch`.
+5. **Response** is set in state; list renders. Errors show a message.
 
 ---
 
@@ -136,13 +139,27 @@ sequenceDiagram
 | **Flat API (no nested embeds)** | Each step fetches the next list. Keeps payloads small and caching simple. |
 | **SQLite default for dev** | No PostgreSQL setup required; switch via `DATABASE_URL` for production. |
 | **Tables created on startup** | `Base.metadata.create_all()` in lifespan for quick dev; add Alembic for production migrations. |
-| **Stack navigator** | Linear flow (Home → Mfr → Tile → Color) matches the waterfall; back button works naturally. |
+| **Stack navigator** | Linear flow (Home → Material → … → Result) matches the waterfall; back button works naturally. |
+| **Client auth (v1)** | Demo Google + guest in `AuthContext`; `EXPO_PUBLIC_HIDE_DEMO_GOOGLE` hides demo for store-like builds. |
+| **CORS** | `CORS_ORIGINS` env (comma-separated). Empty = `*` for local dev; set explicit origins in production. |
+| **Upload rate limit** | SlowAPI on `POST /visualizations` (`RATE_LIMIT_UPLOAD`, default `30/minute`). |
+| **Health** | `GET /health` liveness; `GET /health/ready` checks DB for orchestrators. |
 
 ---
 
 ## Phases
 
-- **Phase 2 (done):** Camera / image picker → upload image + selection IDs to backend. Files stored in `backend/uploads/` (Option A); `POST /visualizations` and `GET /api/v1/uploads/{filename}`. Add Photo screen with compact preview and “Save to server.”
-- **Phase 3:** Backend uses a simple AI agent with providers (mock or Gemini); returns visualization image.
+- **Phase 2 (done):** Camera / image picker → upload image + selection IDs to backend. Files stored in `backend/uploads/` (Option A); `POST /visualizations` and `GET /api/v1/uploads/{filename}`. Add Photo screen with preview, input-quality hints, and **Generate**.
+- **Phase 3 (done for MVP):** Backend uses `AIAgent` + `ImageGenProvider` implementations (`mock`, `GeminiProvider`). Prompt is built from catalog + optional `hex_code` and product slug hints. On provider failure, job completes with mock preview and a user-facing `error_message` when applicable. See [IMAGE-GEN-API.md](./IMAGE-GEN-API.md).
 
-Phase 3 will add new backend services and possibly a result screen on the frontend.
+## AI layer (current)
+
+| Path | Role |
+|------|------|
+| `app/services/generator.py` | Builds prompt, runs agent, writes `result_*` to `uploads/`, updates `Visualization` |
+| `app/services/ai_agent.py` | Thin wrapper over configured provider |
+| `app/services/image_providers/` | `MockProvider`, `GeminiProvider`, `factory.get_image_provider()` |
+
+## Compliance & copy (product)
+
+See [COMPLIANCE-AND-COPY.md](./COMPLIANCE-AND-COPY.md) for preview language, disclaimers, and scope boundaries aligned with independent visualization (not manufacturer-official output).
