@@ -13,5 +13,8 @@ class ColorResponse(BaseModel):
     name: str
     hex_code: str | None = None
     image_url: str | None = None
+    manufacturer_code: str | None = None
+    color_type: str | None = None
+    region: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

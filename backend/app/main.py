@@ -67,6 +67,20 @@ async def lifespan(app: FastAPI):
                 conn2.commit()
             except Exception:
                 conn2.rollback()
+        with engine.connect() as conn3:
+            for table, col, typ in [
+                ("tiles", "collection", "VARCHAR(80)"),
+                ("tiles", "profile_style", "VARCHAR(50)"),
+                ("colors", "manufacturer_code", "VARCHAR(20)"),
+                ("colors", "color_type", "VARCHAR(30)"),
+                ("colors", "region", "VARCHAR(50)"),
+                ("colors", "source_document", "VARCHAR(255)"),
+            ]:
+                try:
+                    conn3.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {typ}"))
+                    conn3.commit()
+                except Exception:
+                    conn3.rollback()
     else:
         logger.info("Non-SQLite DATABASE_URL — run `alembic upgrade head` for schema migrations")
 

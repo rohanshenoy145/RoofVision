@@ -9,5 +9,7 @@ class TileResponse(BaseModel):
     manufacturer_id: int
     name: str
     slug: str | None = None
+    collection: str | None = None
+    profile_style: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

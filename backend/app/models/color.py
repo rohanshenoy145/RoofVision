@@ -19,6 +19,11 @@ class Color(Base):
     name = Column(String(100), nullable=False, index=True)
     hex_code = Column(String(7), nullable=True)  # e.g. "#8B7355" for UI swatch
     image_url = Column(String(500), nullable=True)  # optional product sample
+    # Brochure / catalog fields (human-curated from manufacturer PDFs)
+    manufacturer_code = Column(String(20), nullable=True, index=True)  # e.g. Eagle 4503
+    color_type = Column(String(30), nullable=True)  # range, blend, flashed, solid
+    region = Column(String(50), nullable=True, index=True)  # e.g. california, florida
+    source_document = Column(String(255), nullable=True)  # PDF filename for audit trail
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     tile = relationship("Tile", back_populates="colors")

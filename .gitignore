@@ -64,6 +64,13 @@ logs/
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+# Local manufacturer brochures (extract into backend/data/catalog/catalog.csv instead)
+Manufactuers/
+Manufacturers/
+
+# Internal notes may contain secrets — keep out of git
+ROOF VISION NOTES*.pdf
+
 # Python
 *.pyc
 .mypy_cache/
