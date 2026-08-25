@@ -1,7 +1,7 @@
 /**
  * Result screen — poll visualization job until completed or failed, then show compare UI.
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Image, ActivityIndicator, Pressable, Platform } from "react-native";
 import { File, Paths } from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
@@ -11,6 +11,30 @@ import { COPY } from "../constants/copy";
 import { getRouteParams } from "../utils/routeParams";
 
 const POLL_INTERVAL_MS = 2500;
+const POLL_TIMEOUT_MS = 180000; // 3 minutes
+
+function RecoveryActions({ canRetryPhoto, onRetryStatus, onTryAnotherPhoto, onHome, retryLabel = "Try again" }) {
+  return (
+    <View className="w-full max-w-md mt-6 gap-3">
+      {onRetryStatus ? (
+        <Pressable onPress={onRetryStatus} className="bg-[#1e293b] py-3 rounded-xl active:opacity-90">
+          <Text className="text-white font-semibold text-center">{retryLabel}</Text>
+        </Pressable>
+      ) : null}
+      {canRetryPhoto ? (
+        <Pressable
+          onPress={onTryAnotherPhoto}
+          className="bg-white py-3 rounded-xl border border-[#dbe4ef] active:opacity-90"
+        >
+          <Text className="text-[#334155] font-semibold text-center">Try another photo</Text>
+        </Pressable>
+      ) : null}
+      <Pressable onPress={onHome} className="py-3 active:opacity-80">
+        <Text className="text-[#64748b] font-medium text-center">Back to home</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function ResultScreen({ route, navigation }) {
   const {
@@ -27,8 +51,48 @@ export default function ResultScreen({ route, navigation }) {
   } = getRouteParams(route);
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
+  const [timedOut, setTimedOut] = useState(false);
   const [actionMessage, setActionMessage] = useState(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [pollKey, setPollKey] = useState(0);
+  const startedAtRef = useRef(Date.now());
+
+  const canRetryPhoto = Boolean(manufacturerId && tileId && colorId);
+
+  const goHome = useCallback(() => {
+    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+  }, [navigation]);
+
+  const goTryAnotherPhoto = useCallback(() => {
+    navigation.navigate("AddPhoto", {
+      manufacturerId,
+      manufacturerName,
+      tileId,
+      tileName,
+      colorId,
+      colorName,
+      materialType,
+      materialLabel,
+    });
+  }, [
+    navigation,
+    manufacturerId,
+    manufacturerName,
+    tileId,
+    tileName,
+    colorId,
+    colorName,
+    materialType,
+    materialLabel,
+  ]);
+
+  const restartPolling = useCallback(() => {
+    setError(null);
+    setTimedOut(false);
+    setJob(null);
+    startedAtRef.current = Date.now();
+    setPollKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     if (!visualizationId) {
@@ -36,28 +100,76 @@ export default function ResultScreen({ route, navigation }) {
       return undefined;
     }
     let cancelled = false;
+    let timeoutId = null;
+
     const poll = async () => {
+      if (cancelled) return;
+      if (Date.now() - startedAtRef.current >= POLL_TIMEOUT_MS) {
+        setTimedOut(true);
+        return;
+      }
       try {
         const data = await api.getVisualization(visualizationId);
         if (cancelled) return;
         setJob(data);
+        setError(null);
         if (data.status === "completed" || data.status === "failed") return;
       } catch (e) {
-        if (!cancelled) setError(e.message || "Failed to load status.");
+        if (cancelled) return;
+        // Keep polling through brief network blips until overall timeout
+        if (Date.now() - startedAtRef.current >= POLL_TIMEOUT_MS) {
+          setError(e.message || "Failed to load status.");
+          return;
+        }
+        timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
         return;
       }
-      setTimeout(poll, POLL_INTERVAL_MS);
+      timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
     };
+
     poll();
     return () => {
       cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [visualizationId]);
+  }, [visualizationId, pollKey]);
+
+  const recoveryProps = {
+    canRetryPhoto,
+    onTryAnotherPhoto: goTryAnotherPhoto,
+    onHome: goHome,
+  };
+
+  if (!visualizationId) {
+    return (
+      <View className="flex-1 bg-[#f5f5f4] justify-center items-center p-6">
+        <Text className="text-[#b91c1c] text-center font-medium mb-2">Missing visualization</Text>
+        <Text className="text-[#64748b] text-sm text-center mb-2">
+          Start again from home to create a new preview.
+        </Text>
+        <RecoveryActions {...recoveryProps} canRetryPhoto={false} />
+      </View>
+    );
+  }
 
   if (error) {
     return (
       <View className="flex-1 bg-[#f5f5f4] justify-center items-center p-6">
-        <Text className="text-[#b91c1c] text-center font-medium">{error}</Text>
+        <Text className="text-[#b91c1c] text-center font-medium mb-2">Couldn’t load status</Text>
+        <Text className="text-[#64748b] text-sm text-center">{error}</Text>
+        <RecoveryActions {...recoveryProps} onRetryStatus={restartPolling} retryLabel="Retry status check" />
+      </View>
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <View className="flex-1 bg-[#f5f5f4] justify-center items-center p-6">
+        <Text className="text-[#b45309] text-center font-medium mb-2">Taking longer than expected</Text>
+        <Text className="text-[#64748b] text-sm text-center leading-5">
+          Generation didn’t finish in time. You can check again, try another photo, or start over.
+        </Text>
+        <RecoveryActions {...recoveryProps} onRetryStatus={restartPolling} retryLabel="Check again" />
       </View>
     );
   }
@@ -81,6 +193,7 @@ export default function ResultScreen({ route, navigation }) {
         <Text className="text-[#64748b] text-sm mt-2 text-center">
           {manufacturerName} → {tileName} → {colorName}
         </Text>
+        <Text className="text-[#94a3b8] text-xs mt-3 text-center">This can take up to a couple of minutes.</Text>
         {inputQuality && inputQuality.level === "low" && (
           <View className="mt-6 p-3 rounded-xl border bg-red-50 border-red-200 max-w-md">
             <Text className="text-red-900 font-semibold">Photo quality: low</Text>
@@ -93,6 +206,9 @@ export default function ResultScreen({ route, navigation }) {
             <Text className="text-amber-950 text-sm mt-1 leading-5">{inputQuality.summary}</Text>
           </View>
         )}
+        <Pressable onPress={goHome} className="mt-8 py-2 active:opacity-80">
+          <Text className="text-[#64748b] text-sm text-center">Cancel and go home</Text>
+        </Pressable>
       </View>
     );
   }
@@ -101,9 +217,10 @@ export default function ResultScreen({ route, navigation }) {
     return (
       <View className="flex-1 bg-[#f5f5f4] justify-center items-center p-6">
         <Text className="text-[#b91c1c] font-medium text-center">Generation failed</Text>
-        <Text className="text-[#64748b] text-sm mt-2 text-center">
-          {job.error_message || "Something went wrong."}
+        <Text className="text-[#64748b] text-sm mt-2 text-center leading-5">
+          {job.error_message || "Something went wrong creating this preview."}
         </Text>
+        <RecoveryActions {...recoveryProps} />
       </View>
     );
   }
@@ -112,7 +229,6 @@ export default function ResultScreen({ route, navigation }) {
     const resultFullUrl = resolveMediaUrl(job.result_url);
     const originalFullUrl = resolveMediaUrl(job.image_url);
     const isMock = job.generator === "mock";
-    const canRetry = manufacturerId && tileId && colorId;
 
     const saveImage = async () => {
       try {
@@ -139,13 +255,12 @@ export default function ResultScreen({ route, navigation }) {
         const downloaded = await File.downloadFileAsync(resultFullUrl, dest, { idempotent: true });
         await MediaLibrary.saveToLibraryAsync(downloaded.uri);
         setActionMessage("Saved to your photo library.");
-        setTimeout(() => {
-          navigation.reset({ index: 0, routes: [{ name: "Home" }] });
-        }, 700);
       } catch (e) {
         setActionMessage(e?.message ? `Could not save: ${e.message}` : "Could not save image right now.");
       }
     };
+
+    const savedOk = actionMessage === "Saved to your photo library.";
 
     return (
       <View className="flex-1 bg-[#e2e8f0] p-4">
@@ -201,7 +316,7 @@ export default function ResultScreen({ route, navigation }) {
           <View className="bg-[#fffbeb] border border-[#fde68a] rounded-xl p-3 mb-2">
             <Text className="text-[#92400e] text-sm">
               {job.error_message ||
-                "Preview only — mock result shows your uploaded photo. Configure Gemini on the server when you want cloud generation (see docs)."}
+                "Approximate preview — this result may match your original photo more closely than a full AI render."}
             </Text>
           </View>
         )}
@@ -241,35 +356,40 @@ export default function ResultScreen({ route, navigation }) {
           </View>
         )}
 
-        <View className="flex-row gap-3 mt-3">
-          <Pressable
-            onPress={saveImage}
-            className="flex-1 bg-[#0f766e] py-3 rounded-xl active:opacity-90"
-          >
-            <Text className="text-white font-semibold text-center">Save image</Text>
-          </Pressable>
-          <Pressable
-            disabled={!canRetry}
-            onPress={() =>
-              navigation.navigate("AddPhoto", {
-                manufacturerId,
-                manufacturerName,
-                tileId,
-                tileName,
-                colorId,
-                colorName,
-                materialType,
-                materialLabel,
-              })
-            }
-            className="flex-1 bg-white py-3 rounded-xl border border-[#dbe4ef] active:opacity-90 disabled:opacity-40"
-          >
-            <Text className="text-[#334155] font-semibold text-center">Try another photo</Text>
-          </Pressable>
-        </View>
-        {actionMessage && (
-          <Text className="text-[#475569] text-xs text-center mt-2">{actionMessage}</Text>
+        {savedOk ? (
+          <View className="mt-3 gap-3">
+            <Text className="text-[#047857] text-sm text-center font-medium">
+              Saved to your photo library
+            </Text>
+            <Pressable onPress={goHome} className="bg-[#0f766e] py-3 rounded-xl active:opacity-90">
+              <Text className="text-white font-semibold text-center">Done</Text>
+            </Pressable>
+            {canRetryPhoto ? (
+              <Pressable
+                onPress={goTryAnotherPhoto}
+                className="bg-white py-3 rounded-xl border border-[#dbe4ef] active:opacity-90"
+              >
+                <Text className="text-[#334155] font-semibold text-center">Try another photo</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <View className="flex-row gap-3 mt-3">
+            <Pressable onPress={saveImage} className="flex-1 bg-[#0f766e] py-3 rounded-xl active:opacity-90">
+              <Text className="text-white font-semibold text-center">Save image</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canRetryPhoto}
+              onPress={goTryAnotherPhoto}
+              className="flex-1 bg-white py-3 rounded-xl border border-[#dbe4ef] active:opacity-90 disabled:opacity-40"
+            >
+              <Text className="text-[#334155] font-semibold text-center">Try another photo</Text>
+            </Pressable>
+          </View>
         )}
+        {actionMessage && !savedOk ? (
+          <Text className="text-[#475569] text-xs text-center mt-2">{actionMessage}</Text>
+        ) : null}
 
         {originalFullUrl && (
           <ComparePreviewModal
@@ -285,7 +405,8 @@ export default function ResultScreen({ route, navigation }) {
 
   return (
     <View className="flex-1 bg-[#f5f5f4] justify-center items-center p-6">
-      <Text className="text-[#64748b]">Unknown status: {job.status}</Text>
+      <Text className="text-[#64748b] mb-4">Unknown status: {job.status}</Text>
+      <RecoveryActions {...recoveryProps} />
     </View>
   );
 }

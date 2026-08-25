@@ -48,22 +48,22 @@ export default function SettingsScreen() {
       <View className="bg-[#1e293b] rounded-2xl p-4 mb-4">
         <Text className="text-white font-semibold mb-2">Legal & privacy</Text>
         <Text className="text-[#cbd5e1] text-sm leading-5 mb-3">
-          Photos you upload are sent to your RoofVision backend for preview generation. Host your privacy policy and
-          terms before App Store submission — draft templates are in the repo under docs/legal/.
+          Photos you upload are sent to RoofVision servers to generate an approximate roof preview. Previews are not
+          official manufacturer matches.
         </Text>
         {privacyPolicyUrl ? (
           <Pressable onPress={() => openUrl(privacyPolicyUrl)} className="mb-2 py-1 active:opacity-80">
             <Text className="text-sky-300 text-sm font-semibold underline">Privacy policy</Text>
           </Pressable>
         ) : (
-          <Text className="text-[#64748b] text-xs mb-2">Set EXPO_PUBLIC_PRIVACY_POLICY_URL for a live link.</Text>
+          <Text className="text-[#94a3b8] text-xs mb-2">Privacy policy link coming soon.</Text>
         )}
         {termsOfUseUrl ? (
           <Pressable onPress={() => openUrl(termsOfUseUrl)} className="mb-2 py-1 active:opacity-80">
             <Text className="text-sky-300 text-sm font-semibold underline">Terms of use</Text>
           </Pressable>
         ) : (
-          <Text className="text-[#64748b] text-xs mb-2">Set EXPO_PUBLIC_TERMS_OF_USE_URL for a live link.</Text>
+          <Text className="text-[#94a3b8] text-xs mb-2">Terms of use link coming soon.</Text>
         )}
         {supportUrl ? (
           <Pressable onPress={() => openUrl(supportUrl)} className="mb-2 py-1 active:opacity-80">

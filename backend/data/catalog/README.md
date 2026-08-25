@@ -17,7 +17,7 @@
 | `color_name` | yes | Sierra Madre | Display name |
 | `manufacturer_code` | no | 4503 | Eagle 4-digit code (unique per profile) |
 | `color_type` | no | blend | blend, range, flashed — auto-guessed from name if empty |
-| `hex_code` | no | #8B7355 | Optional; prefer physical sample (Level B) |
+| `hex_code` | no | #8B7355 | Optional UI swatch. Eagle approximates: `scripts/eagle_hex_approximations.py` (not official matches). |
 | `source_document` | no | EAGLE-CA-2026...pdf | Audit trail |
 | `notes` | no | 2026 color of year | Internal; not imported to DB |
 

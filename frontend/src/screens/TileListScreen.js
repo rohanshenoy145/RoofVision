@@ -110,6 +110,12 @@ export default function TileListScreen({ route, navigation }) {
             />
           );
         }}
+        ListEmptyComponent={
+          <View className="mt-10 px-4">
+            <Text className="text-center text-[#64748b] text-base">No products for this brand yet.</Text>
+            <Text className="text-center text-[#94a3b8] text-sm mt-2">Pull to refresh or pick another manufacturer.</Text>
+          </View>
+        }
       />
     </View>
   );

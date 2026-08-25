@@ -97,13 +97,15 @@ List tiles for a manufacturer.
 
 ### GET /tiles/{tile_id}/colors
 
-List colors for a tile.
+List colors for a tile. By default **one row per color name** (regional brochure duplicates collapsed; prefers California when present).
 
 **Parameters:**
 
 | Name | Type | Location | Description |
 |------|------|----------|-------------|
 | tile_id | integer | path | Tile PK |
+| unique_by_name | boolean | query | Default `true`. Set `false` for full regional inventory. |
+| region | string | query | Optional filter, e.g. `california` |
 
 **Response:** `200 OK`
 

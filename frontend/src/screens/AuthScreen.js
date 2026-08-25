@@ -27,11 +27,11 @@ export default function AuthScreen() {
       contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 56 }}
     >
       <Text className="text-[#94a3b8] text-xs tracking-[3px] mb-2">ROOFVISION</Text>
-      <Text className="text-3xl font-bold text-white mb-2">Sign in</Text>
+      <Text className="text-3xl font-bold text-white mb-2">Welcome</Text>
       <Text className="text-[#cbd5e1] text-base leading-6 mb-8">
         {hideDemoGoogleAuth
-          ? "Continue as a guest for this build. Account sign-in can be added when you connect a real identity provider."
-          : "Use your account to personalize the app, or try guest mode. Demo Google is for development only."}
+          ? "Continue as a guest to pick materials, add a home photo, and preview roof options."
+          : "Continue as a guest, or use the demo Google sign-in for local development."}
       </Text>
 
       {!hideDemoGoogleAuth && (
@@ -63,7 +63,9 @@ export default function AuthScreen() {
         <Text className="text-[#e2e8f0] font-medium text-center">Continue as guest</Text>
       </Pressable>
       <Text className="text-[#64748b] text-xs mt-2 text-center">
-        Guest mode skips account linking; use Google demo when you want a quick placeholder sign-in.
+        {hideDemoGoogleAuth
+          ? "No account required for this version."
+          : "Guest mode skips account linking."}
       </Text>
     </ScrollView>
   );

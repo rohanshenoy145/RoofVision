@@ -19,6 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from scripts.eagle_hex_approximations import approximate_hex
+
 DEFAULT_PDF_DIR = Path(__file__).resolve().parent.parent.parent / "Manufactuers" / "Eagle"
 DEFAULT_CSV = Path(__file__).resolve().parent.parent / "data" / "catalog" / "catalog.csv"
 
@@ -45,7 +47,7 @@ PDF_REGION = {
 
 BAD_NAME = re.compile(
     r"Avenue|Blvd|Riverside|Gate \d|Ste\.|Douglas|Locust|Notice:|Design Center|"
-    r"shown is|sister product|REF \.|EMI |SRI ",
+    r"shown is|sister product|REF \.|EMI |SRI |How To Style|Electronics Way",
     re.I,
 )
 
@@ -172,7 +174,7 @@ def extract_pdf(path: Path) -> list[dict]:
                 "color_name": name,
                 "manufacturer_code": code.strip(),
                 "color_type": infer_color_type(name),
-                "hex_code": "",
+                "hex_code": approximate_hex(name),
                 "source_document": source,
                 "notes": "",
             }
