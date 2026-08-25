@@ -2,8 +2,8 @@
  * Result screen — poll visualization job until completed or failed, then show compare UI.
  */
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, ActivityIndicator, Pressable, Platform, Linking } from "react-native";
-import * as FileSystem from "expo-file-system";
+import { View, Text, Image, ActivityIndicator, Pressable, Platform } from "react-native";
+import { File, Paths } from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { api, resolveMediaUrl } from "../api/client";
 import ComparePreviewModal from "../components/ComparePreviewModal";
@@ -126,29 +126,24 @@ export default function ResultScreen({ route, navigation }) {
           setActionMessage("Download started.");
           return;
         }
-        const perm = await MediaLibrary.requestPermissionsAsync();
+
+        setActionMessage("Saving…");
+        const perm = await MediaLibrary.requestPermissionsAsync(true);
         if (perm.status !== "granted") {
-          setActionMessage("Photo library permission is required to save. Opening image instead…");
-          await Linking.openURL(resultFullUrl);
+          setActionMessage("Allow Photos access to save this preview in the app.");
           return;
         }
-        if (!FileSystem.cacheDirectory) {
-          await Linking.openURL(resultFullUrl);
-          setActionMessage("Opened image — save manually if needed.");
-          return;
-        }
-        const ext = resultFullUrl.includes(".png") ? ".png" : ".jpg";
-        const target = `${FileSystem.cacheDirectory}roofvision-result-${visualizationId}${ext}`;
-        const { uri } = await FileSystem.downloadAsync(resultFullUrl, target);
-        await MediaLibrary.saveToLibraryAsync(uri);
+
+        const ext = resultFullUrl.toLowerCase().includes(".png") ? "png" : "jpg";
+        const dest = new File(Paths.cache, `roofvision-result-${visualizationId}.${ext}`);
+        const downloaded = await File.downloadFileAsync(resultFullUrl, dest, { idempotent: true });
+        await MediaLibrary.saveToLibraryAsync(downloaded.uri);
         setActionMessage("Saved to your photo library.");
-      } catch {
-        try {
-          await Linking.openURL(resultFullUrl);
-          setActionMessage("Opened image — save manually if needed.");
-        } catch {
-          setActionMessage("Could not save image right now.");
-        }
+        setTimeout(() => {
+          navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+        }, 700);
+      } catch (e) {
+        setActionMessage(e?.message ? `Could not save: ${e.message}` : "Could not save image right now.");
       }
     };
 
